@@ -1,0 +1,18 @@
+name: switcheroo_dart
+description: A Minecraft mod built with Redstone
+publish_to: none
+
+# Redstone configuration (required for CLI detection)
+redstone:
+  minecraft_version: "1.21.5"
+  org: com.natoboram
+  author: Nato Boram
+
+# Dart workspace - allows packages to reference each other
+workspace:
+  - packages/server
+  - packages/client
+  - packages/common
+
+environment:
+  sdk: ^3.5.0

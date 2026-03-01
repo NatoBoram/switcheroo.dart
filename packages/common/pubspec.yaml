@@ -1,0 +1,13 @@
+name: switcheroo_dart_common
+description: Shared types for Switcheroo.dart (client/server agnostic)
+version: 0.0.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  dart_mod_common:
+    path: ../../../../Norbert515/redstone_dart/packages/dart_mod_common

@@ -1,0 +1,28 @@
+{
+	"schemaVersion": 1,
+	"id": "switcheroo_dart",
+	"version": "${version}",
+	"name": "Switcheroo.dart",
+	"description": "A reimplementation of Switcheroo in Redstone.Dart",
+	"authors": ["Nato Boram"],
+	"contact": {
+		"homepage": "https://github.com/NatoBoram/switcheroo.dart",
+		"sources": "https://github.com/NatoBoram/switcheroo.dart",
+		"issues": "https://github.com/NatoBoram/switcheroo.dart/issues",
+		"email": "10495562+NatoBoram@users.noreply.github.com"
+	},
+	"license": "GPL-3.0-or-later",
+	"icon": "assets/switcheroo_dart/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": ["com.redstone.DartModLoader"],
+		"client": ["com.redstone.DartModClientLoader"]
+	},
+	"mixins": ["switcheroo_dart.mixins.json", "java_mc_bridge.mixins.json"],
+	"depends": {
+		"fabricloader": ">=${loader_version}",
+		"minecraft": ">=${minecraft_version}",
+		"java": ">=21",
+		"fabric-api": ">=${fabric_api_version}"
+	}
+}

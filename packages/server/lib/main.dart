@@ -1,0 +1,311 @@
+// Server entry point for Switcheroo.dart
+//
+// This file handles ALL game logic:
+// - Block/Item/Entity registrations
+// - Commands
+// - Recipes
+// - Loot tables
+// - Event handlers
+// - Custom AI goals
+//
+// It runs on the Server thread using the pure Dart VM.
+
+import 'package:dart_mod_server/dart_mod_server.dart';
+import 'package:minecraft_mcp/runtime.dart';
+
+// =============================================================================
+// MAIN ENTRY POINT
+// =============================================================================
+
+/// Server-side entry point for the mod.
+///
+/// Bridge.run() handles all the initialization boilerplate:
+/// - Bridge.initialize()
+/// - Events.registerProxyBlockHandlers()
+/// - Events.registerProxyItemHandlers()
+/// - Events.registerCustomGoalHandlers()
+/// - Bridge.onRegistryReady(callback)
+void main() {
+  print('Switcheroo.dart server mod initialized!');
+
+  Bridge.run(() {
+    // Register mod content in this order (dependencies first)
+    registerItems();
+    registerBlocks();
+    registerCommands();
+    registerEventHandlers();
+    registerRecipes();
+    registerLootTables();
+
+    print('Switcheroo.dart server mod ready!');
+    print('  Blocks: ${BlockRegistry.blockCount} registered');
+    print('  Items: ${ItemRegistry.itemCount} registered');
+    print('  Commands: /hello, /heal');
+
+    // Initialize MCP runtime for AI-controlled testing (if enabled)
+    initializeMcpRuntime();
+  });
+}
+
+// =============================================================================
+// BLOCKS
+// =============================================================================
+
+/// Registers all custom blocks.
+void registerBlocks() {
+  BlockRegistry.register(HelloBlock());
+  // Add more blocks here:
+  // BlockRegistry.register(MyOtherBlock());
+
+  BlockRegistry.freeze();
+}
+
+/// Registers all custom commands.
+///
+/// Commands use the Commands API:
+/// - Commands.register() for simple commands
+/// - context.source for the player who ran the command
+/// - context.getArgument() for optional arguments
+/// - context.requireArgument() for required arguments
+void registerCommands() {
+  // /hello - A simple greeting command
+  Commands.register(
+    'hello',
+    description: 'Say hello to the player',
+    execute: (context) {
+      context.source.sendMessage(
+        'Switcheroo.dart: Hello, ${context.source.name}!',
+      );
+      return 1;
+    },
+  );
+
+  // /heal [amount] - Heals the player
+  Commands.register(
+    'heal',
+    description: 'Heal the player',
+    arguments: [
+      CommandArgument('amount', ArgumentType.integer, required: false),
+    ],
+    execute: (context) {
+      final player = context.source;
+      final amount = context.getArgument<int>('amount');
+
+      if (amount != null && amount > 0) {
+        final newHealth = (player.health + amount).clamp(0.0, player.maxHealth);
+        player.health = newHealth;
+        context
+            .sendFeedback('Healed for $amount. Health: ${newHealth.toInt()}');
+      } else {
+        player.health = player.maxHealth;
+        context.sendFeedback('Fully healed!');
+      }
+
+      return 1;
+    },
+  );
+
+  print('Commands: Registered 2 custom commands');
+}
+
+// =============================================================================
+// ITEMS
+// =============================================================================
+
+/// Registers all event handlers.
+///
+/// Events API supports:
+/// - Player events: onPlayerJoin, onPlayerDeath, onPlayerChat
+/// - Entity events: onEntityDamage, onEntityDeath
+/// - Block events: onBlockBreak, onBlockPlace
+/// - Server lifecycle: onServerStarted, onServerStopping
+/// - Tick listeners: addTickListener for periodic logic
+void registerEventHandlers() {
+  // Welcome message when players join
+  Events.onPlayerJoin((player) {
+    player.sendTitle(
+      'Welcome!',
+      subtitle: 'Switcheroo.dart',
+      fadeIn: 10,
+      stay: 60,
+      fadeOut: 20,
+    );
+    player.sendMessage('Type /hello to get started!');
+  });
+
+  // Custom death messages
+  Events.onPlayerDeath = (player, damageSource) {
+    if (damageSource.contains('fall')) {
+      return '${player.name} forgot to use feather falling!';
+    }
+    return null; // Use default death message
+  };
+
+  // Periodic tick listener (runs every tick - 20 times per second)
+  Events.addTickListener((tick) {
+    // Every 5 minutes (6000 ticks), send a reminder
+    if (tick > 0 && tick % 6000 == 0) {
+      for (final player in Players.getAllPlayers()) {
+        player.sendActionBar('Switcheroo.dart is running!');
+      }
+    }
+  });
+
+  print('Events: Registered 3 event handlers');
+}
+
+/// Registers all custom items.
+/// Items must be registered BEFORE blocks that reference them as drops.
+void registerItems() {
+  ItemRegistry.register(HelloWand());
+  // Add more items here:
+  // ItemRegistry.register(MyOtherItem());
+
+  ItemRegistry.freeze();
+}
+
+// =============================================================================
+// COMMANDS
+// =============================================================================
+
+/// Registers loot table modifications.
+///
+/// LootTables API allows modifying vanilla and modded loot tables:
+/// - LootTables.modify() to add items to existing tables
+/// - builder.addItem() for simple drops with chance
+/// - builder.addItemWithFunctions() for drops with count/looting
+void registerLootTables() {
+  // Zombies have 10% chance to drop HelloWand
+  LootTables.modify('minecraft:entities/zombie', (builder) {
+    builder.addItem(
+      'switcheroo_dart:hello_wand',
+      chance: 0.10,
+      minCount: 1,
+      maxCount: 1,
+    );
+  });
+
+  print('LootTables: Added 1 loot table modification');
+}
+
+// =============================================================================
+// EVENTS
+// =============================================================================
+
+/// Registers all crafting recipes.
+///
+/// Recipe types:
+/// - Recipes.shaped() - Crafting table with specific pattern
+/// - Recipes.shapeless() - Crafting with any arrangement
+/// - Recipes.smelting() - Furnace recipes
+void registerRecipes() {
+  // Shaped recipe: HelloBlock from stone + diamonds
+  Recipes.shaped(
+    'switcheroo_dart:hello_block',
+    pattern: [
+      'DSD',
+      'SDS',
+      'DSD',
+    ],
+    keys: {
+      'D': 'minecraft:diamond',
+      'S': 'minecraft:stone',
+    },
+    result: 'switcheroo_dart:hello_block',
+  );
+
+  // Shapeless recipe: HelloWand from stick + emerald
+  Recipes.shapeless(
+    'switcheroo_dart:hello_wand',
+    ingredients: ['minecraft:stick', 'minecraft:emerald'],
+    result: 'switcheroo_dart:hello_wand',
+  );
+
+  print('Recipes: Registered 2 custom recipes');
+}
+
+// =============================================================================
+// RECIPES
+// =============================================================================
+
+/// Example custom block that shows a message when right-clicked.
+///
+/// Demonstrates:
+/// - BlockSettings for hardness, resistance, etc.
+/// - BlockModel for textures
+/// - onUse handler for player interaction
+/// - onBreak handler for destruction logic
+class HelloBlock extends CustomBlock {
+  HelloBlock()
+      : super(
+          id: 'switcheroo_dart:hello_block',
+          settings: BlockSettings(
+            hardness: 1.0,
+            resistance: 1.0,
+            requiresTool: false,
+          ),
+          // Use the generated texture from assets/textures/block/
+          model: BlockModel.cubeAll(
+            texture: 'assets/textures/block/hello_block.png',
+          ),
+        );
+
+  @override
+  bool onBreak(int worldId, int x, int y, int z, int playerId) {
+    print('HelloBlock broken at ($x, $y, $z) by player $playerId');
+    return true; // Allow the block to be broken
+  }
+
+  @override
+  ActionResult onUse(int worldId, int x, int y, int z, int playerId, int hand) {
+    final player = Players.getPlayer(playerId);
+    if (player != null) {
+      player.sendMessage(
+        'Switcheroo.dart: Hello! You clicked at ($x, $y, $z)',
+      );
+      // Spawn some particles for visual feedback
+      World.overworld.spawnParticles(
+        Particles.villagerHappy,
+        Vec3(x + 0.5, y + 1.0, z + 0.5),
+        count: 10,
+        delta: Vec3(0.3, 0.3, 0.3),
+      );
+    }
+    return ActionResult.success;
+  }
+}
+
+// =============================================================================
+// LOOT TABLES
+// =============================================================================
+
+/// Example custom item with onUse handler.
+///
+/// Demonstrates:
+/// - ItemSettings for stack size, durability, etc.
+/// - ItemModel for textures
+/// - onUse handler for right-click in air
+class HelloWand extends CustomItem {
+  HelloWand()
+      : super(
+          id: 'switcheroo_dart:hello_wand',
+          settings: ItemSettings(
+            maxStackSize: 1,
+          ),
+          model: ItemModel.generated(
+            texture: 'assets/textures/item/hello_wand.png',
+          ),
+        );
+
+  @override
+  ItemActionResult onUse(int worldId, int playerId, int hand) {
+    final player = Players.getPlayer(playerId);
+    if (player == null) return ItemActionResult.pass;
+
+    // Give the player a speed boost
+    player.sendMessage('Switcheroo.dart: Woosh!');
+    LivingEntity(playerId).addEffect(StatusEffect.speed, 200, amplifier: 2);
+
+    return ItemActionResult.success;
+  }
+}
